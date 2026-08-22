@@ -1,10 +1,247 @@
-.section {
+﻿import fs from 'fs';
+
+const viewerCss = `.viewerWrapper {
   position: relative;
-  padding: calc(var(--space-24) + 48px) 0 var(--space-20);
+  width: 100%;
+  height: 560px;
+  min-height: 480px;
+  background: radial-gradient(circle at 50% 45%, #253142 0%, #1a2230 65%, #121822 100%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), inset 0 0 60px rgba(0, 0, 0, 0.25);
+  user-select: none;
+}
+
+@media (min-width: 1024px) {
+  .viewerWrapper {
+    height: 600px;
+  }
+}
+
+.canvas3d {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+
+.canvas3d:active {
+  cursor: grabbing;
+}
+
+.canvas3d:focus-visible {
+  outline: 2px solid var(--color-amber);
+  outline-offset: -2px;
+}
+
+.hudHeader {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-4);
+  right: var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.hudBadge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px var(--space-3);
+  background-color: rgba(26, 34, 48, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-full);
+  backdrop-filter: blur(10px);
+}
+
+.liveIndicator {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-success);
+  box-shadow: 0 0 8px var(--color-success);
+}
+
+.hudTitle {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-tele-xs);
+  color: var(--color-text-primary);
+  letter-spacing: var(--tracking-wider);
+}
+
+.controlsHelp {
+  display: none;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-tele-xs);
+  color: #94a3b8;
+  background-color: rgba(26, 34, 48, 0.82);
+  padding: 4px var(--space-3);
+  border-radius: var(--radius-full);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (min-width: 640px) {
+  .controlsHelp {
+    display: flex;
+  }
+}
+
+.helpIcon {
+  color: var(--color-steel);
+}
+
+.muscleTooltip {
+  position: absolute;
+  bottom: calc(var(--space-12) + 16px);
+  left: var(--space-4);
+  max-width: 320px;
+  background-color: rgba(26, 34, 48, 0.95);
+  border: 1px solid var(--color-border-amber);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
+  z-index: 10;
+  animation: tooltipEnter var(--dur-fast) var(--ease-sharp);
+}
+
+@keyframes tooltipEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tooltipHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.closeTooltip {
+  color: var(--color-text-muted);
+  font-size: var(--text-tele-xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+}
+
+.closeTooltip:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-elevated);
+}
+
+.tooltipName {
+  font-family: var(--font-display, sans-serif);
+  font-size: var(--text-label);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.tooltipCue {
+  font-size: var(--text-label-sm);
+  color: #cbd5e1;
+  line-height: 1.45;
+}
+
+.legendContainer {
+  position: absolute;
+  bottom: var(--space-3);
+  left: var(--space-4);
+  right: var(--space-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  background-color: rgba(26, 34, 48, 0.90);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  z-index: 5;
+  width: max-content;
+  max-width: calc(100% - 32px);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.legendSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-xs);
+}
+
+.swatchAmber {
+  background-color: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
+
+.swatchSteel {
+  background-color: #0ea5e9;
+  box-shadow: 0 0 8px #0ea5e9;
+}
+
+.swatchNeutral {
+  background-color: #6b7b92;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.legendLabel {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-tele-xs);
+  color: #cbd5e1;
+  letter-spacing: var(--tracking-wider);
+  white-space: nowrap;
+}
+
+.fallbackContainer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  text-align: center;
+  background-color: #1a2230;
+}
+
+.fallbackSvg {
+  max-height: 260px;
+  margin-bottom: var(--space-4);
+}
+
+.fallbackNotice {
+  max-width: 380px;
+  font-size: var(--text-label-sm);
+  color: var(--color-text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+`;
+
+const eduCss = `.section {
+  position: relative;
+  padding: var(--space-24) 0 var(--space-20);
   background-color: var(--color-bg-secondary);
   border-top: 1px solid var(--color-border-subtle);
   overflow: hidden;
-  scroll-margin-top: 120px;
+  scroll-margin-top: 90px;
 }
 
 .header {
@@ -350,3 +587,8 @@
   justify-content: flex-end;
   margin-top: auto;
 }
+`;
+
+fs.writeFileSync('app/components/exercise/AnatomyViewer/AnatomyViewer.module.css', viewerCss, 'utf8');
+fs.writeFileSync('app/components/marketing/EducationPreview/EducationPreview.module.css', eduCss, 'utf8');
+console.log('Styles updated.');

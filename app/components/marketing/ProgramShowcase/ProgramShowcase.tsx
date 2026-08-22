@@ -183,7 +183,7 @@ export const ProgramShowcase: React.FC = () => {
                     <Clock size={14} className={styles.metaIcon} />
                     {program.duration}
                   </span>
-                  <span className={styles.metaDivider}>â€¢</span>
+                  <span className={styles.metaDivider}>·······</span>
                   <span className={styles.metaItem}>
                     <Calendar size={14} className={styles.metaIcon} />
                     {program.frequency}
@@ -217,4 +217,5 @@ export const ProgramShowcase: React.FC = () => {
     </section>
   );
 };
+
 

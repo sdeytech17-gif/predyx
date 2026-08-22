@@ -1,207 +1,217 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import Image from 'next/image';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { Crosshair, Shield, Info } from '@phosphor-icons/react';
+import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
+import { Crosshair, Barbell, Info, Lightning, Cube } from '@phosphor-icons/react';
 import { Tag } from '@/app/components/ui/Tag/Tag';
-import { Button } from '@/app/components/ui/Button/Button';
-import { usePrefersReducedMotion } from '@/app/hooks/usePrefersReducedMotion';
+import { MuscleHighlightId, MUSCLE_METADATA } from '@/app/components/exercise/AnatomyViewer/AnatomyModel';
 import styles from './EducationPreview.module.css';
 
-if (typeof window !== 'undefined') {
-  gsap.registerPlugin(ScrollTrigger);
-}
+const AnatomyViewer = dynamic(
+  () => import('@/app/components/exercise/AnatomyViewer/AnatomyViewer').then((mod) => mod.AnatomyViewer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className={styles.viewerLoading}>
+        <div className={styles.loadingSpinner} />
+        <span className={styles.loadingText}>INITIALIZING KINEMATIC ANATOMY ENGINE...</span>
+      </div>
+    ),
+  }
+);
 
-interface MuscleData {
+interface ExercisePreset {
   id: string;
   name: string;
-  role: 'PRIMARY' | 'SYNERGIST' | 'STABILIZER';
+  category: string;
+  primaryMuscles: MuscleHighlightId[];
+  secondaryMuscles: MuscleHighlightId[];
   movementPlane: string;
-  activationCue: string;
   loadProtocol: string;
-  relativePosition: { top: string; left: string };
+  activationCue: string;
 }
 
-const muscleGroups: MuscleData[] = [
+const exercisePresets: ExercisePreset[] = [
   {
-    id: 'quads',
-    name: 'Quadriceps Femoris',
-    role: 'PRIMARY',
-    movementPlane: 'Sagittal (Knee Extension)',
-    activationCue: 'Drive through midfoot, maintain vertical torso alignment.',
+    id: 'squat',
+    name: 'Barbell Back Squat',
+    category: 'Lower Body Compound',
+    primaryMuscles: ['muscle_quads', 'muscle_glutes'],
+    secondaryMuscles: ['muscle_abs', 'muscle_erectors', 'muscle_adductors', 'muscle_calves'],
+    movementPlane: 'Sagittal (Knee & Hip Extension)',
     loadProtocol: 'Hypertrophy / 70-85% 1RM',
-    relativePosition: { top: '58%', left: '46%' },
+    activationCue: 'Maintain rigid thoracic extension, drive knees tracking over toes, push the floor away through midfoot.',
   },
   {
-    id: 'glutes',
-    name: 'Gluteus Maximus',
-    role: 'PRIMARY',
-    movementPlane: 'Sagittal (Hip Extension)',
-    activationCue: 'Initiate hip hinge with neutral pelvic tilt at lockout.',
+    id: 'deadlift',
+    name: 'Conventional Deadlift',
+    category: 'Posterior Chain Kinetic',
+    primaryMuscles: ['muscle_hamstrings', 'muscle_glutes', 'muscle_erectors'],
+    secondaryMuscles: ['muscle_lats', 'muscle_traps_upper', 'muscle_traps_mid', 'muscle_forearms'],
+    movementPlane: 'Sagittal (Hip Hinge Extension)',
     loadProtocol: 'Peak Force / RPE 8-9',
-    relativePosition: { top: '50%', left: '56%' },
+    activationCue: 'Pull slack out of the barbell, lock lats into back pockets, wedge hips and extend knees and hips simultaneously.',
   },
   {
-    id: 'core',
-    name: 'Transverse Abdominis & Erector Spinae',
-    role: 'STABILIZER',
-    movementPlane: 'Multi-Planar Bracing',
-    activationCue: 'Intra-abdominal pressure bracing against lumbar spine.',
-    loadProtocol: 'Isometric Anti-Flexion',
-    relativePosition: { top: '42%', left: '50%' },
-  },
-  {
-    id: 'deltoids',
-    name: 'Deltoid Complex & Upper Trapezius',
-    role: 'SYNERGIST',
+    id: 'overhead-press',
+    name: 'Standing Overhead Press',
+    category: 'Vertical Upper Drive',
+    primaryMuscles: ['muscle_front_delt', 'muscle_side_delt', 'muscle_triceps'],
+    secondaryMuscles: ['muscle_traps_upper', 'muscle_chest', 'muscle_abs'],
     movementPlane: 'Frontal / Scapular Plane',
-    activationCue: 'Pack scapulae and engage serratus anterior throughout press.',
-    loadProtocol: 'Auxiliary Stability / RPE 7-8',
-    relativePosition: { top: '24%', left: '52%' },
+    loadProtocol: 'Strength / 75-85% 1RM',
+    activationCue: 'Squeeze glutes and core, press bar in direct vertical bar path, shrug upper traps at lockout overhead.',
+  },
+  {
+    id: 'barbell-row',
+    name: 'Bent-Over Barbell Row',
+    category: 'Horizontal Upper Pull',
+    primaryMuscles: ['muscle_lats', 'muscle_traps_mid', 'muscle_biceps'],
+    secondaryMuscles: ['muscle_rear_delt', 'muscle_erectors', 'muscle_forearms'],
+    movementPlane: 'Transverse & Sagittal Pull',
+    loadProtocol: 'Volume Load / RPE 7-8',
+    activationCue: 'Hinge at 45 degrees, initiate pull with elbow drive toward hip crease, squeeze scapulae without lumbar jerk.',
   },
 ];
 
 export const EducationPreview: React.FC = () => {
-  const educationRef = useRef<HTMLElement>(null);
-  const [selectedMuscle, setSelectedMuscle] = useState<MuscleData>(muscleGroups[0]);
-  const prefersReducedMotion = usePrefersReducedMotion();
+  const [selectedExercise, setSelectedExercise] = useState<ExercisePreset>(exercisePresets[0]);
+  const [selectedMuscleId, setSelectedMuscleId] = useState<MuscleHighlightId | null>(null);
 
-  useEffect(() => {
-    if (prefersReducedMotion || typeof window === 'undefined') return;
-
-    const education = educationRef.current;
-    if (!education) return;
-
-    const ctx = gsap.context(() => {
-      const layers = education.querySelectorAll('[data-edu-depth]');
-      layers.forEach((layer) => {
-        const depth = parseFloat((layer as HTMLElement).dataset.eduDepth ?? '0.5');
-        gsap.to(layer, {
-          y: () => -(60 * (1 - depth)),
-          ease: 'none',
-          scrollTrigger: {
-            trigger: education,
-            start: 'top bottom',
-            end: 'bottom top',
-            scrub: true,
-          },
-        });
-      });
-    }, educationRef);
-
-    return () => ctx.revert();
-  }, [prefersReducedMotion]);
+  const activeMuscleInfo = selectedMuscleId ? MUSCLE_METADATA[selectedMuscleId] : null;
 
   return (
     <section
       id="anatomy"
-      ref={educationRef}
       className={styles.section}
-      aria-label="2.5D Anatomy Engine Preview"
+      aria-label="2.5D Kinematic Anatomy Engine"
     >
       <div className="container">
         <div className={styles.header}>
-          <Tag variant="steel">ANATOMICAL PRECISION</Tag>
+          <div className={styles.tagWrapper}>
+            <Tag variant="steel">
+              <Cube size={14} weight="bold" />
+              <span>2.5D KINEMATIC BIOMECHANICS</span>
+            </Tag>
+          </div>
           <h2 className={styles.sectionTitle}>
-            2.5D KINEMATIC <span className={styles.highlight}>ANATOMY ENGINE</span>
+            INTERACTIVE KINEMATIC <span className={styles.highlight}>ANATOMY VIEWER</span>
           </h2>
           <p className={styles.sectionDesc}>
-            High-resolution visual biomechanics mapping agonist and synergist force vectors. Understand muscular tension trajectories before initiating movement.
+            Dynamic human anatomical model with real-time agonist and synergist force vector highlights. Select movement patterns, toggle anterior and posterior chains, and click any muscle region for precision biomechanical cues.
           </p>
         </div>
 
+        {/* Exercise Switcher Navigation Tabs - Positioned cleanly ABOVE the viewer */}
+        <div className={styles.exerciseNav} role="tablist" aria-label="Exercise Presets">
+          {exercisePresets.map((ex) => (
+            <button
+              key={ex.id}
+              className={`${styles.exerciseTab} ${selectedExercise.id === ex.id ? styles.exerciseTabActive : ''}`}
+              onClick={() => {
+                setSelectedExercise(ex);
+                setSelectedMuscleId(null);
+              }}
+              role="tab"
+              aria-selected={selectedExercise.id === ex.id}
+            >
+              <Barbell size={16} className={styles.tabIcon} />
+              <span>{ex.name}</span>
+            </button>
+          ))}
+        </div>
+
         <div className={styles.interactiveContainer}>
-          {/* Main Visualizer Stage */}
-          <div className={styles.stage} data-edu-depth="0.2">
-            <div className={styles.imageWrapper} data-edu-depth="0.5">
-              <Image
-                src="/images/predyx_feature_exercise_education_1787037651610.jpg"
-                alt="2.5D Anatomy visualizer display showing muscular highlight overlay"
-                fill
-                className={styles.stageImage}
-                sizes="(max-width: 1024px) 100vw, 720px"
-              />
-              <div className={styles.stageOverlay} />
-
-              {/* Interactive Muscle Pins */}
-              {muscleGroups.map((muscle) => (
-                <button
-                  key={muscle.id}
-                  className={`${styles.pin} ${selectedMuscle.id === muscle.id ? styles.pinActive : ''}`}
-                  style={{ top: muscle.relativePosition.top, left: muscle.relativePosition.left }}
-                  onClick={() => setSelectedMuscle(muscle)}
-                  aria-label={`Select ${muscle.name}`}
-                  aria-pressed={selectedMuscle.id === muscle.id}
-                >
-                  <span className={styles.pinDot} />
-                  <span className={styles.pinRipple} />
-                </button>
-              ))}
-            </div>
-
-            {/* Overlaid UI HUD Card */}
-            <div className={styles.hudOverlay} data-edu-depth="0.75">
-              <div className={styles.hudHeader}>
-                <span className={styles.hudLiveDot} />
-                <span className={styles.hudStatus}>BIOMECHANIC HUD // LIVE</span>
-              </div>
-              <div className={styles.hudMuscleName}>{selectedMuscle.name}</div>
-              <div className={styles.hudRoleBadge}>
-                <Tag variant={selectedMuscle.role === 'PRIMARY' ? 'amber' : 'steel'}>
-                  {selectedMuscle.role} DRIVER
-                </Tag>
-              </div>
-            </div>
+          {/* Main 3D Viewport Stage */}
+          <div className={styles.stage}>
+            <AnatomyViewer
+              exerciseName={selectedExercise.name}
+              primaryMuscles={selectedExercise.primaryMuscles}
+              secondaryMuscles={selectedExercise.secondaryMuscles}
+              autoRotate={true}
+              onSelectMuscle={(mId) => setSelectedMuscleId(mId)}
+            />
           </div>
 
-          {/* Telemetry Information Sidebar */}
-          <div className={styles.sidebar} data-edu-depth="0.9">
+          {/* Biomechanics Telemetry Information Sidebar */}
+          <div className={styles.sidebar}>
             <div className={styles.sidebarHeader}>
               <Crosshair size={20} className={styles.sidebarIcon} />
-              <h3 className={styles.sidebarTitle}>ANALYTICAL BREAKDOWN</h3>
+              <div>
+                <h3 className={styles.sidebarTitle}>{selectedExercise.name}</h3>
+                <span className={styles.sidebarCategory}>{selectedExercise.category}</span>
+              </div>
             </div>
 
-            {/* Muscle Selectors */}
-            <div className={styles.muscleSelectors} role="tablist" aria-label="Muscle regions">
-              {muscleGroups.map((muscle) => (
-                <button
-                  key={muscle.id}
-                  className={`${styles.muscleTab} ${selectedMuscle.id === muscle.id ? styles.muscleTabActive : ''}`}
-                  onClick={() => setSelectedMuscle(muscle)}
-                  role="tab"
-                  aria-selected={selectedMuscle.id === muscle.id}
-                >
-                  <span className={styles.muscleTabName}>{muscle.name}</span>
-                  <span className={styles.muscleTabRole}>{muscle.role}</span>
-                </button>
-              ))}
+            {/* Muscle Highlight Breakdown */}
+            <div className={styles.muscleSection}>
+              <div className={styles.muscleGroupBlock}>
+                <span className={styles.groupLabel}>PRIMARY AGONISTS (AMBER)</span>
+                <div className={styles.chipRow}>
+                  {selectedExercise.primaryMuscles.map((mId) => (
+                    <button
+                      key={mId}
+                      className={`${styles.muscleChip} ${styles.chipAmber} ${selectedMuscleId === mId ? styles.chipSelected : ''}`}
+                      onClick={() => setSelectedMuscleId(mId)}
+                      aria-label={`Highlight ${MUSCLE_METADATA[mId]?.name || mId}`}
+                    >
+                      {MUSCLE_METADATA[mId]?.name || mId}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.muscleGroupBlock}>
+                <span className={styles.groupLabel}>SECONDARY SYNERGISTS (CYAN)</span>
+                <div className={styles.chipRow}>
+                  {selectedExercise.secondaryMuscles.map((mId) => (
+                    <button
+                      key={mId}
+                      className={`${styles.muscleChip} ${styles.chipSteel} ${selectedMuscleId === mId ? styles.chipSelected : ''}`}
+                      onClick={() => setSelectedMuscleId(mId)}
+                      aria-label={`Highlight ${MUSCLE_METADATA[mId]?.name || mId}`}
+                    >
+                      {MUSCLE_METADATA[mId]?.name || mId}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
+
+            {/* Selected Muscle Live HUD Feedback */}
+            {activeMuscleInfo && (
+              <div className={styles.activeMuscleBox}>
+                <div className={styles.activeMuscleHeader}>
+                  <Info size={16} className={styles.activeMuscleIcon} />
+                  <span>INSPECTING: {activeMuscleInfo.name}</span>
+                </div>
+                <p className={styles.activeMuscleCue}>{activeMuscleInfo.cue}</p>
+              </div>
+            )}
 
             {/* Readout Panels */}
             <div className={styles.dataPanel}>
               <div className={styles.dataRow}>
                 <span className={styles.dataLabel}>KINEMATIC PLANE</span>
-                <span className={styles.dataValue}>{selectedMuscle.movementPlane}</span>
+                <span className={styles.dataValue}>{selectedExercise.movementPlane}</span>
               </div>
 
               <div className={styles.dataRow}>
                 <span className={styles.dataLabel}>LOAD PROTOCOL</span>
-                <span className={styles.dataValue}>{selectedMuscle.loadProtocol}</span>
+                <span className={styles.dataValue}>{selectedExercise.loadProtocol}</span>
               </div>
 
               <div className={styles.dataCueBox}>
                 <div className={styles.dataCueHeader}>
-                  <Info size={16} className={styles.dataCueIcon} />
-                  <span>NEUROMUSCULAR CUE</span>
+                  <Lightning size={16} className={styles.dataCueIcon} />
+                  <span>NEUROMUSCULAR ACTIVATION CUE</span>
                 </div>
-                <p className={styles.dataCueText}>{selectedMuscle.activationCue}</p>
+                <p className={styles.dataCueText}>{selectedExercise.activationCue}</p>
               </div>
             </div>
 
             <div className={styles.sidebarFooter}>
-              <Tag variant="default">WCAG 2.1 AA COMPLIANT TELEMETRY</Tag>
+              <Tag variant="default">WCAG 2.1 AA COMPLIANT 3D ENGINE</Tag>
             </div>
           </div>
         </div>
@@ -209,4 +219,3 @@ export const EducationPreview: React.FC = () => {
     </section>
   );
 };
-
