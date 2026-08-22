@@ -128,7 +128,7 @@ export const EducationPreview: React.FC = () => {
               exerciseName={selectedExercise.name}
               primaryMuscles={selectedExercise.primaryMuscles}
               secondaryMuscles={selectedExercise.secondaryMuscles}
-              autoRotate={true}
+              selectedMuscleId={selectedMuscleId}
               onSelectMuscle={(mId) => setSelectedMuscleId(mId)}
             />
           </div>
@@ -211,7 +211,7 @@ export const EducationPreview: React.FC = () => {
             </div>
 
             <div className={styles.sidebarFooter}>
-              <Tag variant="default">WCAG 2.1 AA COMPLIANT 3D ENGINE</Tag>
+              <Tag variant="default">WCAG 2.1 AA COMPLIANT KINEMATIC ENGINE</Tag>
             </div>
           </div>
         </div>

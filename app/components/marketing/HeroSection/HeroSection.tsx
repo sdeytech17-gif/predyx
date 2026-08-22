@@ -204,7 +204,7 @@ export const HeroSection: React.FC = () => {
               iconPosition="left"
               onClick={() => scrollToSection('anatomy')}
             >
-              Interactive 3D Anatomy
+              Interactive Kinematic Anatomy
             </Button>
           </div>
 

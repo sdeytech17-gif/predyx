@@ -1,4 +1,6 @@
-'use client';
+import os
+
+anatomy_tsx = """'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
@@ -853,3 +855,309 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
     </div>
   );
 };
+"""
+
+anatomy_css = """
+.viewerWrapper {
+  position: relative;
+  width: 100%;
+  height: 640px;
+  min-height: 560px;
+  background: radial-gradient(circle at 50% 42%, #222d3d 0%, #17202c 60%, #0f151e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.50), inset 0 0 80px rgba(0, 0, 0, 0.35);
+  user-select: none;
+  perspective: 1000px;
+}
+
+.hudHeader {
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-4);
+  right: var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.hudBadge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px var(--space-3);
+  background-color: rgba(22, 30, 42, 0.90);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-full);
+  backdrop-filter: blur(12px);
+}
+
+.liveIndicator {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-success);
+  box-shadow: 0 0 8px var(--color-success);
+}
+
+.hudTitle {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-tele-xs);
+  color: var(--color-text-primary);
+  letter-spacing: var(--tracking-wider);
+}
+
+.viewToggleGroup {
+  display: flex;
+  align-items: center;
+  background-color: rgba(18, 24, 34, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-full);
+  padding: 3px;
+  backdrop-filter: blur(12px);
+}
+
+.viewToggleBtn {
+  padding: 5px var(--space-3);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-tele-xs);
+  font-weight: var(--font-weight-medium);
+  color: #94a3b8;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-sharp);
+  border: none;
+  background: transparent;
+}
+
+.viewToggleBtn:hover {
+  color: #f8fafc;
+}
+
+.viewToggleActive {
+  background-color: #334155;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.figureStage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-style: preserve-3d;
+}
+
+.studioGlow {
+  position: absolute;
+  width: 360px;
+  height: 520px;
+  background: radial-gradient(ellipse at center, rgba(56, 189, 248, 0.14) 0%, rgba(245, 158, 11, 0.09) 45%, transparent 70%);
+  filter: blur(35px);
+  pointer-events: none;
+}
+
+.groundingRadar {
+  position: absolute;
+  bottom: 28px;
+  width: 260px;
+  height: 64px;
+  border: 1px dashed rgba(100, 116, 139, 0.38);
+  border-radius: 50%;
+  pointer-events: none;
+  transform: rotateX(65deg);
+}
+
+.contactShadow {
+  position: absolute;
+  bottom: 32px;
+  width: 200px;
+  height: 42px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.70) 0%, rgba(0, 0, 0, 0.28) 50%, transparent 80%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.anatomySvg {
+  width: 100%;
+  max-width: 350px;
+  height: 88%;
+  max-height: 540px;
+  filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.55));
+  z-index: 2;
+}
+
+.anatomyGroup {
+  animation: fadeIn 0.35s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0.4; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.musclePath {
+  cursor: pointer;
+  outline: none;
+  transition: filter 0.2s ease, stroke 0.2s ease;
+}
+
+.musclePath:hover,
+.musclePath:focus-visible {
+  filter: brightness(1.25) drop-shadow(0 0 10px rgba(255, 255, 255, 0.7)) !important;
+}
+
+.muscleGroupPath {
+  cursor: pointer;
+  outline: none;
+}
+
+.muscleGroupPath:hover .musclePath,
+.muscleGroupPath:focus-visible .musclePath {
+  filter: brightness(1.25) drop-shadow(0 0 10px rgba(255, 255, 255, 0.7)) !important;
+}
+
+.muscleTooltip {
+  position: absolute;
+  bottom: calc(var(--space-12) + 16px);
+  left: var(--space-4);
+  max-width: 320px;
+  background-color: rgba(22, 30, 42, 0.96);
+  border: 1px solid var(--color-border-amber);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.65);
+  z-index: 10;
+  animation: tooltipEnter var(--dur-fast) var(--ease-sharp);
+}
+
+@keyframes tooltipEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tooltipHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.closeTooltip {
+  color: var(--color-text-muted);
+  font-size: var(--text-tele-xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.closeTooltip:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-elevated);
+}
+
+.tooltipName {
+  font-family: var(--font-display, sans-serif);
+  font-size: var(--text-label);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.tooltipCue {
+  font-size: var(--text-label-sm);
+  color: #cbd5e1;
+  line-height: 1.45;
+}
+
+.legendContainer {
+  position: absolute;
+  bottom: var(--space-3);
+  left: var(--space-4);
+  right: var(--space-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  background-color: rgba(22, 30, 42, 0.92);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  z-index: 5;
+  width: max-content;
+  max-width: calc(100% - 32px);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.legendSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-xs);
+}
+
+.swatchAmber {
+  background-color: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
+
+.swatchSteel {
+  background-color: #0ea5e9;
+  box-shadow: 0 0 8px #0ea5e9;
+}
+
+.swatchNeutral {
+  background-color: #253142;
+  border: 1px solid #3e4d64;
+}
+
+.legendLabel {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-tele-xs);
+  color: #cbd5e1;
+  letter-spacing: var(--tracking-wider);
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .viewerWrapper {
+    height: 520px;
+    min-height: 480px;
+  }
+  .hudHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+  .legendContainer {
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+  }
+  .legendLabel {
+    font-size: 9px;
+  }
+}
+"""
+
+with open('app/components/exercise/AnatomyViewer/AnatomyViewer.tsx', 'w', encoding='utf-8') as f:
+    f.write(anatomy_tsx)
+
+with open('app/components/exercise/AnatomyViewer/AnatomyViewer.module.css', 'w', encoding='utf-8') as f:
+    f.write(anatomy_css)
+
+print('AnatomyViewer.tsx and AnatomyViewer.module.css successfully updated.')
